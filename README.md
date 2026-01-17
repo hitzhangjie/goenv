@@ -1,0 +1,2 @@
+# goenv
+go version manager
