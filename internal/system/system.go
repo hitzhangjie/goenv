@@ -43,5 +43,5 @@ func GetDownloadURL(version, goos, goarch string) string {
 	if strings.HasPrefix(ver, "go") {
 		ver = ver[2:]
 	}
-	return fmt.Sprintf("https://go.dev/dl/%s.%s-%s.tar.gz", version, goos, goarch)
+	return fmt.Sprintf("https://dl.google.com/go/go%s.%s-%s.tar.gz", ver, goos, goarch)
 }

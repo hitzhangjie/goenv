@@ -63,12 +63,15 @@ func Install(version string) error {
 		return fmt.Errorf("failed to create bin directory: %w", err)
 	}
 
-	// Download
+	// Download (check if already exists first)
 	tarballPath := filepath.Join(downloadsDir, filepath.Base(url))
-	if err := downloadFile(url, tarballPath); err != nil {
-		return fmt.Errorf("failed to download: %w", err)
+	if _, err := os.Stat(tarballPath); err == nil {
+		fmt.Printf("Found existing download: %s, skipping download.\n", tarballPath)
+	} else {
+		if err := downloadFile(url, tarballPath); err != nil {
+			return fmt.Errorf("failed to download: %w", err)
+		}
 	}
-	defer os.Remove(tarballPath) // Clean up after extraction
 
 	// Extract
 	installDir := filepath.Join(sdkDir, version)
@@ -161,6 +164,10 @@ func extractTarball(tarballPath, destDir string) error {
 
 	tr := tar.NewReader(gzr)
 
+	// Detect and strip the top-level directory prefix (usually "go/")
+	var stripPrefix string
+	firstEntry := true
+
 	for {
 		header, err := tr.Next()
 		if err == io.EOF {
@@ -170,12 +177,33 @@ func extractTarball(tarballPath, destDir string) error {
 			return err
 		}
 
+		// Detect the top-level directory on first entry
+		if firstEntry {
+			firstEntry = false
+			// Extract the top-level directory name
+			parts := strings.Split(strings.TrimPrefix(header.Name, "./"), "/")
+			if len(parts) > 0 && parts[0] != "" {
+				stripPrefix = parts[0] + "/"
+			}
+		}
+
 		// Skip if not a regular file or directory
 		if header.Typeflag != tar.TypeReg && header.Typeflag != tar.TypeDir {
 			continue
 		}
 
-		target := filepath.Join(destDir, header.Name)
+		// Strip the top-level directory prefix
+		name := header.Name
+		if stripPrefix != "" && strings.HasPrefix(name, stripPrefix) {
+			name = strings.TrimPrefix(name, stripPrefix)
+		}
+
+		// Skip if name is empty after stripping (this is the top-level directory itself)
+		if name == "" || name == "./" {
+			continue
+		}
+
+		target := filepath.Join(destDir, name)
 
 		// Ensure parent directory exists
 		if err := os.MkdirAll(filepath.Dir(target), 0755); err != nil {
@@ -233,7 +261,8 @@ exec "%s" "$@"
 }
 
 func createGofmtScript(version, installDir, binDir string) error {
-	scriptPath := filepath.Join(binDir, "gofmt")
+	suffix := strings.TrimPrefix(version, "go")
+	scriptPath := filepath.Join(binDir, "gofmt"+suffix)
 	gofmtBin := filepath.Join(installDir, "bin", "gofmt")
 
 	// Check if gofmt script already exists
