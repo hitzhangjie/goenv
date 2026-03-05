@@ -247,10 +247,7 @@ func createGoScript(version, installDir, binDir string) error {
 	goBin := filepath.Join(installDir, "bin", "go")
 
 	script := fmt.Sprintf(`#!/bin/bash
-GOROOT="%s"
-GOPATH="%s"
-GOBIN="%s"
-exec "%s" "$@"
+GOROOT="%s" GOPATH="%s" GOBIN="%s" exec "%s" "$@"
 `, goroot, gopath, gobin, goBin)
 
 	if err := os.WriteFile(scriptPath, []byte(script), 0755); err != nil {
