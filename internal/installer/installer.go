@@ -243,7 +243,7 @@ func createGoScript(version, installDir, binDir string) error {
 
 	goroot := installDir
 	gopath := filepath.Join(root, version)
-	gobin := filepath.Join(binDir, version)
+	gobin := filepath.Join(gopath, "bin")
 	goBin := filepath.Join(installDir, "bin", "go")
 
 	script := fmt.Sprintf(`#!/bin/bash
