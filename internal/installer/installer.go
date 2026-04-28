@@ -233,6 +233,46 @@ func extractTarball(tarballPath, destDir string) error {
 	return nil
 }
 
+// FixScripts regenerates wrapper scripts for all installed Go versions.
+// Use this after goenv itself is updated to apply new environment variable settings.
+func FixScripts() error {
+	sdkDir, err := config.GetSDKDir()
+	if err != nil {
+		return err
+	}
+
+	binDir, err := config.GetBinDir()
+	if err != nil {
+		return err
+	}
+
+	entries, err := os.ReadDir(sdkDir)
+	if err != nil {
+		return fmt.Errorf("failed to read SDK directory: %w", err)
+	}
+
+	for _, entry := range entries {
+		if !entry.IsDir() || !strings.HasPrefix(entry.Name(), "go") {
+			continue
+		}
+		version := entry.Name()
+		installDir := filepath.Join(sdkDir, version)
+		goBin := filepath.Join(installDir, "bin", "go")
+		if _, err := os.Stat(goBin); err != nil {
+			continue
+		}
+		if err := createGoScript(version, installDir, binDir); err != nil {
+			return fmt.Errorf("failed to fix script for %s: %w", version, err)
+		}
+		if err := createGofmtScript(version, installDir, binDir); err != nil {
+			return fmt.Errorf("failed to fix gofmt script for %s: %w", version, err)
+		}
+		fmt.Printf("Fixed scripts for %s\n", version)
+	}
+
+	return nil
+}
+
 func createGoScript(version, installDir, binDir string) error {
 	scriptPath := filepath.Join(binDir, version)
 
@@ -244,11 +284,13 @@ func createGoScript(version, installDir, binDir string) error {
 	goroot := installDir
 	gopath := filepath.Join(root, version)
 	gobin := filepath.Join(gopath, "bin")
+	gocache := filepath.Join(gopath, "cache")
+	gotestcache := filepath.Join(gopath, "testcache")
 	goBin := filepath.Join(installDir, "bin", "go")
 
 	script := fmt.Sprintf(`#!/bin/bash
-GOROOT="%s" GOPATH="%s" GOBIN="%s" exec "%s" "$@"
-`, goroot, gopath, gobin, goBin)
+GOROOT="%s" GOPATH="%s" GOBIN="%s" GOCACHE="%s" GOTESTCACHE="%s" exec "%s" "$@"
+`, goroot, gopath, gobin, gocache, gotestcache, goBin)
 
 	if err := os.WriteFile(scriptPath, []byte(script), 0755); err != nil {
 		return err

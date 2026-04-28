@@ -20,4 +20,5 @@ func init() {
 	rootCmd.AddCommand(installCmd)
 	rootCmd.AddCommand(listCmd)
 	rootCmd.AddCommand(cleanupCmd)
+	rootCmd.AddCommand(fixCmd)
 }
